@@ -63,6 +63,11 @@ builds `.msi`/`.exe` (Windows), `.dmg` (macOS, unsigned) and `.deb` (Linux) as a
   piles open menus, battlefield card opens showdown/control. Units enter exhausted and exhaust when
   moving between base and battlefields (model). Spells never go to base: dropped on the board they go
   on the chain. Chain cards target permanents (T, then click; arrows drawn from chain to target).
+  **Abilities on the chain** (owner: triggered abilities like Minefield, activated ones like Viktor's
+  legend): dragging a permanent (unit, gear, legend, champion, rune) or a battlefield card onto the
+  chain panel (chain + focus area) puts `Action.Activate` on the chain: an `ability = true` stand-in
+  card (`source` = the permanent; null for battlefields) while the permanent stays put; it targets like
+  a spell and disappears when it resolves. Also "Ability to chain" in card and battlefield menus.
   Closing a showdown ends the combat (damage there wears off). Drag & drop between zones; cards slide
   from their last position only when they change zone (no jitter on reflow/hover); hand fan/lift is
   drawn inside the card's own hit box.

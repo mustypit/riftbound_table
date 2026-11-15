@@ -247,6 +247,28 @@ class TableTest {
         assertEquals(0, s.card(unit).damage); assertEquals(-2, s.card(unit).mightMod)
     }
 
+    @Test fun abilitiesGoOnTheChainWithoutMovingTheirCardAndVanishWhenResolved() {
+        var s = Table.apply(game(), Action.StartTurn)
+        val legend = s.ids(Zone.of(ZoneKind.LEGEND, Side.ME)).first()
+        val cardsBefore = s.cards.size
+        s = Table.apply(s, Action.Activate(s.card(legend).slug, Side.ME, legend))
+        assertEquals(Zone.of(ZoneKind.LEGEND, Side.ME), s.zoneOf(legend))
+        val ability = s.ids(Zone.CHAIN).single()
+        assertTrue(s.card(ability).ability); assertEquals(legend, s.card(ability).source)
+        assertTrue(s.log.last().text.endsWith(": ability"))
+        // A battlefield's triggered ability (no source card).
+        s = Table.apply(s, Action.Activate(s.battlefields[0], Side.ME))
+        val trigger = s.ids(Zone.CHAIN).last()
+        val unit = s.ids(Zone.of(ZoneKind.CHAMPION, Side.ME)).first()
+        s = Table.apply(s, Action.Target(trigger, unit))
+        s = Table.apply(s, Action.Resolve)
+        s = Table.apply(s, Action.Resolve)
+        assertTrue(s.ids(Zone.CHAIN).isEmpty())
+        assertEquals(cardsBefore, s.cards.size)
+        assertEquals(s.cards.size, s.zones.values.sumOf { it.size })
+        assertTrue(s.ids(Zone.of(ZoneKind.TRASH, Side.ME)).isEmpty())
+    }
+
     @Test fun aNewActionClearsRedo() {
         val h = TableHistory(game())
         h.apply(Action.StartTurn); h.undo()

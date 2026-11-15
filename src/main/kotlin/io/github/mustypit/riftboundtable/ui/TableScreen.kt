@@ -170,6 +170,13 @@ fun TableScreen(app: AppState) {
         HoverPreview(app, t, ui, dims, viewer)
         ui.drag?.let { d ->
             val c = t.cards[d.id]
+            if (d.id < 0) t.battlefields.getOrNull(-1 - d.id)?.let { slug ->
+                val tl = d.pos - d.grab
+                Images.card(slug)?.let { img ->
+                    Image(img, null, Modifier.offset { IntOffset(tl.x.roundToInt(), tl.y.roundToInt()) }.size(dims.bfCardW, dims.bfCardH)
+                        .graphicsLayer { shadowElevation = 24f; shape = RoundedCornerShape(6.dp); clip = true }, contentScale = ContentScale.Crop)
+                }
+            }
             if (c != null) {
                 val z = t.zoneOf(d.id)
                 val tl = d.pos - d.grab
@@ -342,6 +349,15 @@ private fun BattlefieldView(app: AppState, t: TableState, ui: TableUi, dims: Dim
                     .onGloballyPositioned { ui.bfRect[i] = it.boundsInRoot() }
                     .onPointerEvent(PointerEventType.Enter) { ui.hoverBf = i }.onPointerEvent(PointerEventType.Exit) { if (ui.hoverBf == i) ui.hoverBf = null }
                     .onPointerEvent(PointerEventType.Press) { e -> if (e.buttons.isSecondaryPressed) ui.menu = Menu(null, null, i, (ui.bfRect[i]?.topLeft ?: Offset.Zero) + e.changes.first().position) }
+                    .pointerInput(i) {
+                        // Drag the battlefield card onto the chain for its triggered ability.
+                        detectDragGestures(
+                            onDragStart = { o -> ui.menu = null; ui.drag = Drag(-1 - i, (ui.bfRect[i]?.topLeft ?: Offset.Zero) + o, o) },
+                            onDrag = { change, amount -> change.consume(); ui.drag?.let { d -> val np = d.pos + amount; ui.drag = d.copy(pos = np); ui.dragOver = ui.zoneAt(np) } },
+                            onDragEnd = { app.table?.let { drop(app, it, ui) } },
+                            onDragCancel = { ui.drag = null; ui.dragOver = null },
+                        )
+                    }
                     .clickable { app.act(Action.Showdown(if (sd) null else i)) }.testTag("bfcard-$i")) {
                     Images.card(slug)?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
                 }
@@ -497,8 +513,16 @@ private fun drop(app: AppState, t: TableState, ui: TableUi) {
     val d = ui.drag ?: return
     ui.drag = null; ui.dragOver = null
     val to = ui.zoneAt(d.pos) ?: return
+    // A battlefield card dragged onto the chain: its triggered ability goes on the chain.
+    if (d.id < 0) { if (to == Zone.CHAIN) t.battlefields.getOrNull(-1 - d.id)?.let { app.act(Action.Activate(it, app.viewer)) }; return }
     val from = t.zoneOf(d.id) ?: return
     if (to == from) return
+    val c = t.card(d.id)
+    if (c.ability) return // abilities live on the chain only
+    // A permanent dragged onto the chain: its ability goes on the chain, the card stays put.
+    if (to == Zone.CHAIN && from.kind in setOf(ZoneKind.BASE, ZoneKind.BATTLEFIELD, ZoneKind.LEGEND, ZoneKind.CHAMPION, ZoneKind.RUNES)) {
+        app.act(Action.Activate(c.slug, c.owner, c.id)); return
+    }
     // Slide from where it was dropped.
     ui.cardRect[d.id]?.let { r -> ui.cardRect[d.id] = Rect(d.pos - d.grab, r.size) }
     val index = when (to.kind) { ZoneKind.DECK, ZoneKind.TRASH, ZoneKind.BANISH -> 0; else -> null }
@@ -687,12 +711,19 @@ private fun cardMenu(app: AppState, t: TableState, id: Int, viewer: Side): List<
         for (i in t.battlefields.indices) items += "Hide at ${bfName(i)}" to { app.act(Action.FaceDown(id, true)); move(Zone.bf(owner, i), null) }
         if ((t.turnsTaken[owner] ?: 0) == 0) items += "Mulligan" to { app.act(Action.Mulligan(id)) }
     }
+    if (z.kind == ZoneKind.CHAIN && c.ability) {
+        items += "Target  (T)" to { app.targeting = id }
+        if (c.targets.isNotEmpty()) items += "Clear targets" to { c.targets.forEach { app.act(Action.Target(id, it)) } }
+        if (t.ids(Zone.CHAIN).lastOrNull() == id) items += "Resolve  (S)" to { app.targeting = null; app.act(Action.Resolve) }
+        return items
+    }
     if (z.kind == ZoneKind.CHAIN) {
         items += "Target  (T)" to { app.targeting = id }
         if (c.targets.isNotEmpty()) items += "Clear targets" to { c.targets.forEach { app.act(Action.Target(id, it)) } }
         if (t.ids(Zone.CHAIN).lastOrNull() == id) items += "Resolve  (S)" to { app.targeting = null; app.act(Action.Resolve) }
     }
     if (onBoard) items += (if (c.exhausted) "Ready" else "Exhaust") to { app.act(Action.Exhaust(id, !c.exhausted)) }
+    if (onBoard && !c.faceDown) items += "Ability to chain" to { app.act(Action.Activate(c.slug, owner, id)) }
     if (z.kind == ZoneKind.BASE || z.kind == ZoneKind.BATTLEFIELD) {
         items += "Might / damage  (C)" to { app.editing = id }
         items += (if (c.buff) "Remove buff" else "Buff") to { app.act(Action.Buff(id, !c.buff)) }
@@ -724,6 +755,7 @@ private fun pileMenu(app: AppState, t: TableState, ui: TableUi, z: Zone, viewer:
 
 private fun bfMenu(app: AppState, t: TableState, i: Int, viewer: Side): List<Pair<String, () -> Unit>> = listOf(
     (if (t.showdown == i) "End showdown" else "Showdown") to { app.act(Action.Showdown(if (t.showdown == i) null else i)) },
+    "Ability to chain" to { app.act(Action.Activate(t.battlefields[i], viewer)) },
     "${app.seatName(viewer)} controls" to { app.act(Action.Control(i, viewer)) },
     "${app.seatName(viewer.other)} controls" to { app.act(Action.Control(i, viewer.other)) },
     "Nobody controls" to { app.act(Action.Control(i, null)) },
@@ -777,10 +809,15 @@ private fun SidePanel(app: AppState, t: TableState, ui: TableUi, dims: Dims, vie
                 }
             }
         }
-        ChainPanel(app, t, ui, dims, viewer)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(C.Accent))
-            Text(if (t.focus == viewer) "Your focus" else "${app.seatName(t.focus)}'s focus", color = felt.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        // Drop a card from hand to play it onto the chain, or a permanent / battlefield card for its ability.
+        DropZone(ui, Zone.CHAIN, Modifier.fillMaxWidth(), framed = false) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ChainPanel(app, t, ui, dims, viewer)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(C.Accent))
+                    Text(if (t.focus == viewer) "Your focus" else "${app.seatName(t.focus)}'s focus", color = felt.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
         val starting = t.phase == Phase.AWAKEN
         PanelButton(if (starting) "Start turn" else "Pass", "SPACE", primary = true, Modifier.fillMaxWidth().testTag("primary")) {
@@ -803,10 +840,12 @@ private fun SidePanel(app: AppState, t: TableState, ui: TableUi, dims: Dims, vie
 private fun ChainPanel(app: AppState, t: TableState, ui: TableUi, dims: Dims, viewer: Side) {
     val felt = LocalFelt.current
     val chain = t.cardsIn(Zone.CHAIN)
-    DropZone(ui, Zone.CHAIN, Modifier.fillMaxWidth(), framed = false) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(felt.panel2).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    run {
+        val dropping = ui.drag != null && ui.dragOver == Zone.CHAIN
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(if (dropping) C.Accent.copy(alpha = 0.12f) else felt.panel2).padding(8.dp)
+            .testTag("chain"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("CHAIN", color = felt.dim, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp, modifier = Modifier.weight(1f))
+                Text(if (dropping) "ADD TO CHAIN" else "CHAIN", color = felt.dim, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.4.sp, modifier = Modifier.weight(1f))
                 Text(if (chain.isEmpty()) "empty" else "${chain.size}", color = felt.dim, fontSize = 12.sp)
             }
             val topCard = chain.lastOrNull()
@@ -814,17 +853,20 @@ private fun ChainPanel(app: AppState, t: TableState, ui: TableUi, dims: Dims, vi
                 PanelButton("Resolve", "S", true, Modifier.fillMaxWidth().testTag("resolve")) { app.targeting = null; app.act(Action.Resolve) }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     val w = (dims.cardW * 1.5f).coerceAtMost(150.dp)
-                    TableCard(app, t, ui, topCard, Zone.CHAIN, viewer, w, w * 1.4f, dims)
+                    // Battlefield abilities show their card in landscape.
+                    if (typeOf(topCard) == "battlefield") TableCard(app, t, ui, topCard, Zone.CHAIN, viewer, w * 1.25f, w * 1.25f / 1.4f, dims)
+                    else TableCard(app, t, ui, topCard, Zone.CHAIN, viewer, w, w * 1.4f, dims)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(Cards.bySlug(topCard.slug)?.name ?: "", color = felt.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(app.seatName(topCard.owner), color = felt.dim, fontSize = 12.sp)
+                        Text(app.seatName(topCard.owner) + (if (topCard.ability) " · ability" else ""), color = felt.dim, fontSize = 12.sp)
                         PanelButton(if (app.targeting == topCard.id) "Cancel" else "Target", "T", false, Modifier.fillMaxWidth().testTag("target")) {
                             app.targeting = if (app.targeting == topCard.id) null else topCard.id
                         }
                         chain.dropLast(1).asReversed().forEach { c ->
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                TableCard(app, t, ui, c, Zone.CHAIN, viewer, 28.dp, 39.dp, dims)
-                                Text(Cards.bySlug(c.slug)?.name ?: "", color = felt.dim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (typeOf(c) == "battlefield") TableCard(app, t, ui, c, Zone.CHAIN, viewer, 39.dp, 28.dp, dims)
+                                else TableCard(app, t, ui, c, Zone.CHAIN, viewer, 28.dp, 39.dp, dims)
+                                Text((Cards.bySlug(c.slug)?.name ?: "") + (if (c.ability) " · ability" else ""), color = felt.dim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

@@ -49,6 +49,10 @@ data class CardInst(
     val faceDown: Boolean = false,
     /** For a card on the chain: the permanents it targets. */
     val targets: List<Int> = emptyList(),
+    /** An ability on the chain (a stand-in for [source]'s ability, not a real card): resolving removes it. */
+    val ability: Boolean = false,
+    /** The card whose ability this is, or null for a battlefield's ability. */
+    val source: Int? = null,
 )
 
 @Serializable
@@ -140,6 +144,11 @@ sealed interface Action {
     @Serializable data class Target(val source: Int, val target: Int) : Action
     @Serializable data class SetMight(val id: Int, val mod: Int) : Action
     @Serializable data class SetDamage(val id: Int, val damage: Int) : Action
+    /**
+     * Put an ability on the chain: a triggered or activated ability of a permanent ([source], e.g. a unit,
+     * gear or legend) or of a battlefield ([slug] only). The permanent itself stays where it is.
+     */
+    @Serializable data class Activate(val slug: String, val owner: Side, val source: Int? = null) : Action
 }
 
 /**
@@ -261,9 +270,20 @@ object Table {
             if (c.exhausted || s.zoneOf(a.id)?.kind != ZoneKind.RUNES) s
             else s.update(a.id) { it.copy(exhausted = true) }.addPool(c.owner, energy = 1)
         }
+        is Action.Activate -> {
+            val id = s.nextId
+            val abilityCard = CardInst(id, a.slug, a.owner, ability = true, source = a.source)
+            s.copy(cards = s.cards + (id to abilityCard), zones = s.zones + (Zone.CHAIN to s.ids(Zone.CHAIN) + id), nextId = id + 1)
+                .log(a.owner, "${name(a.slug)}: ability")
+        }
         Action.Resolve -> {
             val top = s.ids(Zone.CHAIN).lastOrNull()
-            if (top == null) s else {
+            val topCard = top?.let { s.card(it) }
+            if (topCard != null && topCard.ability) {
+                // An ability is only a marker: it disappears when it resolves.
+                s.copy(cards = s.cards - top, zones = s.zones + (Zone.CHAIN to s.ids(Zone.CHAIN).dropLast(1)))
+                    .log(topCard.owner, "${name(topCard.slug)}: ability resolves")
+            } else if (top == null) s else {
                 val c = s.card(top)
                 val to = Zone.of(ZoneKind.TRASH, c.owner)
                 s.copy(zones = s.zones + (Zone.CHAIN to s.ids(Zone.CHAIN).dropLast(1)) + (to to listOf(top) + s.ids(to)))

@@ -285,6 +285,20 @@ class AppTest {
         onAllNodesWithContentDescription("More Energy")[1].performClick()
         assertEquals(2, app.table!!.pools[Side.ME]!!.energy)
         shot("19_table_1920")
+
+        // Dragging a permanent (here the legend) or a battlefield card onto the chain panel puts its ability on the chain.
+        val legend = app.table!!.ids(Zone.of(ZoneKind.LEGEND, Side.ME)).first()
+        drag("card-$legend", "chain")
+        assertEquals(Zone.of(ZoneKind.LEGEND, Side.ME), app.table!!.zoneOf(legend))
+        val ability = app.table!!.ids(Zone.CHAIN).last()
+        assertTrue(app.table!!.card(ability).ability); assertEquals(legend, app.table!!.card(ability).source)
+        drag("bfcard-0", "chain")
+        assertEquals(2, app.table!!.ids(Zone.CHAIN).size)
+        assertEquals(app.table!!.battlefields[0], app.table!!.card(app.table!!.ids(Zone.CHAIN).last()).slug)
+        shot("20_abilities_on_chain")
+        key(Key.S); key(Key.S)
+        assertTrue(app.table!!.ids(Zone.CHAIN).isEmpty())
+        assertEquals(Zone.of(ZoneKind.LEGEND, Side.ME), app.table!!.zoneOf(legend))
     }
 
     private var clock by androidx.compose.runtime.mutableStateOf(0f)
