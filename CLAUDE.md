@@ -72,5 +72,5 @@ builds `.msi`/`.exe` (Windows), `.dmg` (macOS, unsigned) and `.deb` (Linux) as a
 - Hidden info towards Claude (phase 3): Claude only learns the owner's hand size, face-up cards with
   full text, existence of face-down cards, trash with full text, deck size. Never the decklist.
 - Develop on a branch, push, merge to `main` only when the owner says. No PRs unless asked.
-- Releases: GitHub releases with the installers from the Build workflow's artifacts on `main`
-  (`gh run download <run> -D dist` then `gh release create vX.Y.Z dist/*/*`).
+- Releases: automatic. Every push to `main` runs Build, and its `release` job publishes
+  `v1.0.<run number>` with the `.exe`, `.msi`, `.dmg` and `.deb` (same number as `packageVersion`).

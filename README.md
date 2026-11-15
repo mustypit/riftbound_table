@@ -7,7 +7,7 @@ Unofficial and not affiliated with Riot Games. Card images and data are used for
 
 ## Install
 
-Download the installer for your system from the latest
+Every push to `main` publishes a new release. Download the installer for your system from the latest
 [release](https://github.com/mustypit/riftbound_table/releases): `.msi` or `.exe` for Windows,
 `.dmg` for macOS (unsigned: right-click → Open the first time), `.deb` for Linux.
 
