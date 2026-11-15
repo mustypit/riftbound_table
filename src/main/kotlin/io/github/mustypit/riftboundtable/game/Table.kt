@@ -124,6 +124,8 @@ sealed interface Action {
     /** End phase: damage and "this turn" effects wear off, pools empty, the other player's turn. */
     @Serializable data object EndTurn : Action
     @Serializable data class Note(val side: Side?, val text: String) : Action
+    /** Mulligan one card: it goes to the bottom of the deck and the top card replaces it. */
+    @Serializable data class Mulligan(val id: Int) : Action
 }
 
 /**
@@ -146,7 +148,7 @@ object Table {
      * SecureRandom-backed in the app.
      */
     fun newGame(me: Deck, opp: Deck, first: Side, fields: Pair<String, String>, random: Random): TableState {
-        var s = TableState(first = first, active = first, focus = first, phase = Phase.ACTION)
+        var s = TableState(first = first, active = first, focus = first, phase = Phase.AWAKEN)
         val bfs = mutableListOf<String>()
         for ((side, deck) in listOf(Side.ME to me, Side.OPP to opp)) {
             s = s.add(side, Zone.of(ZoneKind.LEGEND, side), listOf(deck.legend))
@@ -163,7 +165,7 @@ object Table {
         s = s.copy(battlefields = owners.map { bfs[it.ordinal] }, battlefieldOwners = owners)
         s = apply(s, Action.Draw(Side.ME, OPENING_HAND))
         s = apply(s, Action.Draw(Side.OPP, OPENING_HAND))
-        return s.copy(log = listOf(LogEntry(null, "${if (first == Side.ME) "You go" else "Opponent goes"} first")))
+        return s.copy(log = listOf(LogEntry(first, "Goes first")))
     }
 
     private fun TableState.add(side: Side, z: Zone, slugs: List<String>): TableState {
@@ -228,6 +230,15 @@ object Table {
         Action.Pass -> s.copy(focus = s.focus.other).log(s.focus, "Pass")
         Action.EndTurn -> endTurn(s)
         is Action.Note -> s.log(a.side, a.text)
+        is Action.Mulligan -> {
+            val side = s.card(a.id).owner
+            val deck = Zone.of(ZoneKind.DECK, side); val hand = Zone.of(ZoneKind.HAND, side)
+            if (s.zoneOf(a.id) != hand || s.ids(deck).isEmpty()) s else {
+                val top = s.ids(deck).first()
+                s.copy(zones = s.zones + (hand to s.ids(hand).map { if (it == a.id) top else it }) + (deck to s.ids(deck).drop(1) + a.id))
+                    .log(side, "Mulligans a card")
+            }
+        }
     }
 
     private fun move(s: TableState, a: Action.Move): TableState {

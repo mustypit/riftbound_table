@@ -157,6 +157,17 @@ class TableTest {
         assertFalse(h.canUndo)
     }
 
+    @Test fun gamesStartWaitingForTheFirstTurnAndMulliganSwapsWithTheTopCard() {
+        var s = game()
+        assertEquals(Phase.AWAKEN, s.phase)
+        val card = s.ids(Zone.of(ZoneKind.HAND, Side.ME))[1]
+        val top = s.ids(Zone.of(ZoneKind.DECK, Side.ME)).first()
+        s = Table.apply(s, Action.Mulligan(card))
+        assertEquals(top, s.ids(Zone.of(ZoneKind.HAND, Side.ME))[1])
+        assertEquals(card, s.ids(Zone.of(ZoneKind.DECK, Side.ME)).last())
+        assertEquals(Table.OPENING_HAND, s.count(ZoneKind.HAND, Side.ME))
+    }
+
     @Test fun aNewActionClearsRedo() {
         val h = TableHistory(game())
         h.apply(Action.StartTurn); h.undo()

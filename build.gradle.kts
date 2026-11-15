@@ -24,6 +24,7 @@ compose.desktop {
     application {
         mainClass = "io.github.mustypit.riftboundtable.MainKt"
         nativeDistributions {
+            modules("java.instrument", "jdk.unsupported")
             targetFormats(TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "Riftbound Table"
             packageVersion = (System.getenv("GITHUB_RUN_NUMBER")?.let { "1.0.$it" } ?: "1.0.0")
