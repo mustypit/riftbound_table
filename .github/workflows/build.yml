@@ -79,8 +79,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: v1.0.${{ github.run_number }}
         run: |
-          ls -la dist
-          gh release create "$TAG" dist/* --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+          # The Windows artifact keeps exe/ and msi/ subfolders: upload every file, wherever it sits.
+          mapfile -t files < <(find dist -type f)
+          printf '%s\n' "${files[@]}"
+          gh release create "$TAG" "${files[@]}" --repo "${{ github.repository }}" --target "${{ github.sha }}" \
             --title "Riftbound Table $TAG" \
             --notes "Built from ${{ github.sha }}. Windows: .exe or .msi · macOS: .dmg (unsigned: right-click → Open the first time) · Linux: .deb" \
             --latest
