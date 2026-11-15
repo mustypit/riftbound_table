@@ -1,0 +1,629 @@
+[
+ {
+  "name": "Ahri",
+  "title": "Nine-Tailed Fox",
+  "set": "Origins",
+  "domains": [
+   "calm",
+   "mind"
+  ],
+  "artist": "Envar Studio",
+  "image": "ahri.jpg"
+ },
+ {
+  "name": "Akali",
+  "title": "Rogue Assassin",
+  "set": "Vendetta",
+  "domains": [
+   "fury",
+   "calm"
+  ],
+  "artist": "Envar Studio",
+  "image": "akali.jpg"
+ },
+ {
+  "name": "Ambessa",
+  "title": "Matriarch of War",
+  "set": "Vendetta",
+  "domains": [
+   "body",
+   "order"
+  ],
+  "artist": "Envar Studio",
+  "image": "ambessa.jpg"
+ },
+ {
+  "name": "Annie",
+  "title": "Dark Child, Starter",
+  "set": "Proving Grounds",
+  "domains": [
+   "fury",
+   "chaos"
+  ],
+  "artist": "Six More Vodka",
+  "image": "annie.jpg"
+ },
+ {
+  "name": "Azir",
+  "title": "Emperor of the Sands",
+  "set": "Spiritforged",
+  "domains": [
+   "calm",
+   "order"
+  ],
+  "artist": "蛋费鸡丁",
+  "image": "azir.jpg"
+ },
+ {
+  "name": "Darius",
+  "title": "Hand of Noxus",
+  "set": "Origins",
+  "domains": [
+   "fury",
+   "order"
+  ],
+  "artist": "Six More Vodka",
+  "image": "darius.jpg"
+ },
+ {
+  "name": "Diana",
+  "title": "Scorn of the Moon",
+  "set": "Unleashed",
+  "domains": [
+   "mind",
+   "chaos"
+  ],
+  "artist": "Envar Studio",
+  "image": "diana.jpg"
+ },
+ {
+  "name": "Draven",
+  "title": "Glorious Executioner",
+  "set": "Spiritforged",
+  "domains": [
+   "fury",
+   "chaos"
+  ],
+  "artist": "Pandart Studio",
+  "image": "draven.jpg"
+ },
+ {
+  "name": "Ekko",
+  "title": "Boy Who Shattered Time",
+  "set": "Radiance",
+  "domains": [
+   "fury",
+   "mind"
+  ],
+  "artist": "Envar Studio",
+  "image": "ekko.jpg"
+ },
+ {
+  "name": "Evelynn",
+  "title": "Agony's Embrace",
+  "set": "Radiance",
+  "domains": [
+   "body",
+   "chaos"
+  ],
+  "artist": "Envar Studio",
+  "image": "evelynn.jpg"
+ },
+ {
+  "name": "Ezreal",
+  "title": "Prodigal Explorer",
+  "set": "Spiritforged",
+  "domains": [
+   "mind",
+   "chaos"
+  ],
+  "artist": "Pandart Studio",
+  "image": "ezreal.jpg"
+ },
+ {
+  "name": "Fiora",
+  "title": "Grand Duelist",
+  "set": "Spiritforged",
+  "domains": [
+   "body",
+   "order"
+  ],
+  "artist": "Pandart Studio",
+  "image": "fiora.jpg"
+ },
+ {
+  "name": "Garen",
+  "title": "Might of Demacia, Starter",
+  "set": "Proving Grounds",
+  "domains": [
+   "body",
+   "order"
+  ],
+  "artist": "Six More Vodka",
+  "image": "garen.jpg"
+ },
+ {
+  "name": "Irelia",
+  "title": "Blade Dancer",
+  "set": "Spiritforged",
+  "domains": [
+   "calm",
+   "chaos"
+  ],
+  "artist": "Pandart Studio",
+  "image": "irelia.jpg"
+ },
+ {
+  "name": "Ivern",
+  "title": "Green Father",
+  "set": "Unleashed",
+  "domains": [
+   "calm",
+   "order"
+  ],
+  "artist": "Envar Studio",
+  "image": "ivern.jpg"
+ },
+ {
+  "name": "Jarvan IV",
+  "title": "Exemplar of Demacia",
+  "set": "Radiance",
+  "domains": [
+   "body",
+   "order"
+  ],
+  "artist": "Grafit Studio",
+  "image": "jarvan_iv.jpg"
+ },
+ {
+  "name": "Jax",
+  "title": "Grandmaster at Arms",
+  "set": "Spiritforged",
+  "domains": [
+   "calm",
+   "body"
+  ],
+  "artist": "Pandart Studio",
+  "image": "jax.jpg"
+ },
+ {
+  "name": "Jayce",
+  "title": "Defender of Tomorrow",
+  "set": "Vendetta",
+  "domains": [
+   "mind",
+   "body"
+  ],
+  "artist": "Envar Studio",
+  "image": "jayce.jpg"
+ },
+ {
+  "name": "Jhin",
+  "title": "Virtuoso",
+  "set": "Unleashed",
+  "domains": [
+   "fury",
+   "mind"
+  ],
+  "artist": "Pandart Studio",
+  "image": "jhin.jpg"
+ },
+ {
+  "name": "Jinx",
+  "title": "Loose Cannon",
+  "set": "Origins",
+  "domains": [
+   "fury",
+   "chaos"
+  ],
+  "artist": "Sugar Free",
+  "image": "jinx.jpg"
+ },
+ {
+  "name": "K'Sante",
+  "title": "Pride of Nazumah",
+  "set": "Radiance",
+  "domains": [
+   "calm",
+   "body"
+  ],
+  "artist": "Envar Studio",
+  "image": "ksante.jpg"
+ },
+ {
+  "name": "Kai'Sa",
+  "title": "Daughter of the Void",
+  "set": "Origins",
+  "domains": [
+   "fury",
+   "mind"
+  ],
+  "artist": "Kudos Productions",
+  "image": "kaisa.jpg"
+ },
+ {
+  "name": "Kennen",
+  "title": "Heart of the Tempest",
+  "set": "Vendetta",
+  "domains": [
+   "chaos",
+   "order"
+  ],
+  "artist": "Envar Studio",
+  "image": "kennen.jpg"
+ },
+ {
+  "name": "Kha'Zix",
+  "title": "Voidreaver",
+  "set": "Unleashed",
+  "domains": [
+   "body",
+   "chaos"
+  ],
+  "artist": "Envar Studio",
+  "image": "khazix.jpg"
+ },
+ {
+  "name": "LeBlanc",
+  "title": "Deceiver",
+  "set": "Unleashed",
+  "domains": [
+   "mind",
+   "order"
+  ],
+  "artist": "黯荧岛Dark Glow",
+  "image": "leblanc.jpg"
+ },
+ {
+  "name": "Lee Sin",
+  "title": "Blind Monk",
+  "set": "Origins",
+  "domains": [
+   "calm",
+   "body"
+  ],
+  "artist": "Six More Vodka",
+  "image": "lee_sin.jpg"
+ },
+ {
+  "name": "Leona",
+  "title": "Radiant Dawn",
+  "set": "Origins",
+  "domains": [
+   "calm",
+   "order"
+  ],
+  "artist": "Six More Vodka",
+  "image": "leona.jpg"
+ },
+ {
+  "name": "Lillia",
+  "title": "Bashful Bloom",
+  "set": "Unleashed",
+  "domains": [
+   "calm",
+   "mind"
+  ],
+  "artist": "Pandart Studio",
+  "image": "lillia.jpg"
+ },
+ {
+  "name": "Lucian",
+  "title": "Purifier",
+  "set": "Spiritforged",
+  "domains": [
+   "fury",
+   "body"
+  ],
+  "artist": "Pandart Studio",
+  "image": "lucian.jpg"
+ },
+ {
+  "name": "Lux",
+  "title": "Lady of Luminosity, Starter",
+  "set": "Proving Grounds",
+  "domains": [
+   "mind",
+   "order"
+  ],
+  "artist": "Grafit Studio/Maki Planas Mata",
+  "image": "lux.jpg"
+ },
+ {
+  "name": "Master Yi",
+  "title": "Wuju Bladesman, Starter",
+  "set": "Proving Grounds",
+  "domains": [
+   "calm",
+   "body"
+  ],
+  "artist": "Grafit Studio/Quy Ho",
+  "image": "master_yi.jpg"
+ },
+ {
+  "name": "Mel",
+  "title": "Soul's Reflection",
+  "set": "Vendetta",
+  "domains": [
+   "mind",
+   "chaos"
+  ],
+  "artist": "Envar Studio",
+  "image": "mel.jpg"
+ },
+ {
+  "name": "Miss Fortune",
+  "title": "Bounty Hunter",
+  "set": "Origins",
+  "domains": [
+   "body",
+   "chaos"
+  ],
+  "artist": "Six More Vodka",
+  "image": "miss_fortune.jpg"
+ },
+ {
+  "name": "Mordekaiser",
+  "title": "Iron Revenant",
+  "set": "Radiance",
+  "domains": [
+   "fury",
+   "order"
+  ],
+  "artist": "TUTU",
+  "image": "mordekaiser.jpg"
+ },
+ {
+  "name": "Nasus",
+  "title": "Curator of the Sands",
+  "set": "Vendetta",
+  "domains": [
+   "calm",
+   "mind"
+  ],
+  "artist": "Envar Studio",
+  "image": "nasus.jpg"
+ },
+ {
+  "name": "Orianna",
+  "title": "Lady of Clockwork",
+  "set": "Radiance",
+  "domains": [
+   "calm",
+   "mind"
+  ],
+  "artist": "Envar Studio",
+  "image": "orianna.jpg"
+ },
+ {
+  "name": "Ornn",
+  "title": "Fire Below the Mountain",
+  "set": "Spiritforged",
+  "domains": [
+   "calm",
+   "mind"
+  ],
+  "artist": "Pandart Studio",
+  "image": "ornn.jpg"
+ },
+ {
+  "name": "Poppy",
+  "title": "Keeper of the Hammer",
+  "set": "Unleashed",
+  "domains": [
+   "body",
+   "order"
+  ],
+  "artist": "Pandart Studio",
+  "image": "poppy.jpg"
+ },
+ {
+  "name": "Pyke",
+  "title": "Bloodharbor Ripper",
+  "set": "Unleashed",
+  "domains": [
+   "fury",
+   "chaos"
+  ],
+  "artist": "TSWCK逍",
+  "image": "pyke.jpg"
+ },
+ {
+  "name": "Rek'Sai",
+  "title": "Void Burrower",
+  "set": "Spiritforged",
+  "domains": [
+   "fury",
+   "order"
+  ],
+  "artist": "Pandart Studio",
+  "image": "reksai.jpg"
+ },
+ {
+  "name": "Renata Glasc",
+  "title": "Chem-Baroness",
+  "set": "Spiritforged",
+  "domains": [
+   "mind",
+   "order"
+  ],
+  "artist": "Pandart Studio",
+  "image": "renata_glasc.jpg"
+ },
+ {
+  "name": "Renekton",
+  "title": "Butcher of the Sands",
+  "set": "Vendetta",
+  "domains": [
+   "fury",
+   "body"
+  ],
+  "artist": "Envar Studio",
+  "image": "renekton.jpg"
+ },
+ {
+  "name": "Rengar",
+  "title": "Pridestalker",
+  "set": "Unleashed",
+  "domains": [
+   "fury",
+   "body"
+  ],
+  "artist": "Envar Studio",
+  "image": "rengar.jpg"
+ },
+ {
+  "name": "Riven",
+  "title": "The Exile",
+  "set": "Radiance",
+  "domains": [
+   "calm",
+   "chaos"
+  ],
+  "artist": "Grafit Studio",
+  "image": "riven.jpg"
+ },
+ {
+  "name": "Rumble",
+  "title": "Mechanized Menace",
+  "set": "Spiritforged",
+  "domains": [
+   "fury",
+   "mind"
+  ],
+  "artist": "Pandart Studio",
+  "image": "rumble.jpg"
+ },
+ {
+  "name": "Seraphine",
+  "title": "Starry-Eyed Songstress",
+  "set": "Radiance",
+  "domains": [
+   "mind",
+   "order"
+  ],
+  "artist": "Naifan Zhang",
+  "image": "seraphine.jpg"
+ },
+ {
+  "name": "Sett",
+  "title": "The Boss",
+  "set": "Origins",
+  "domains": [
+   "body",
+   "order"
+  ],
+  "artist": "Envar Studio",
+  "image": "sett.jpg"
+ },
+ {
+  "name": "Shen",
+  "title": "Eye of Twilight",
+  "set": "Vendetta",
+  "domains": [
+   "calm",
+   "order"
+  ],
+  "artist": "Envar Studio",
+  "image": "shen.jpg"
+ },
+ {
+  "name": "Sivir",
+  "title": "Battle Mistress",
+  "set": "Spiritforged",
+  "domains": [
+   "body",
+   "chaos"
+  ],
+  "artist": "Zhongqi Li",
+  "image": "sivir.jpg"
+ },
+ {
+  "name": "Teemo",
+  "title": "Swift Scout",
+  "set": "Origins",
+  "domains": [
+   "mind",
+   "chaos"
+  ],
+  "artist": "Shawn Lee",
+  "image": "teemo.jpg"
+ },
+ {
+  "name": "Vex",
+  "title": "Gloomist",
+  "set": "Unleashed",
+  "domains": [
+   "calm",
+   "chaos"
+  ],
+  "artist": "Pandart Studio",
+  "image": "vex.jpg"
+ },
+ {
+  "name": "Vi",
+  "title": "Piltover Enforcer",
+  "set": "Unleashed",
+  "domains": [
+   "fury",
+   "order"
+  ],
+  "artist": "Pandart Studio",
+  "image": "vi.jpg"
+ },
+ {
+  "name": "Viktor",
+  "title": "Herald of the Arcane",
+  "set": "Origins",
+  "domains": [
+   "mind",
+   "order"
+  ],
+  "artist": "Fortiche Production",
+  "image": "viktor.jpg"
+ },
+ {
+  "name": "Volibear",
+  "title": "Relentless Storm",
+  "set": "Origins",
+  "domains": [
+   "fury",
+   "body"
+  ],
+  "artist": "Grafit Studio",
+  "image": "volibear.jpg"
+ },
+ {
+  "name": "Yasuo",
+  "title": "Unforgiven",
+  "set": "Origins",
+  "domains": [
+   "calm",
+   "chaos"
+  ],
+  "artist": "TSWCK逍",
+  "image": "yasuo.jpg"
+ },
+ {
+  "name": "Zed",
+  "title": "Master of Shadows",
+  "set": "Vendetta",
+  "domains": [
+   "fury",
+   "chaos"
+  ],
+  "artist": "Envar Studio",
+  "image": "zed.jpg"
+ },
+ {
+  "name": "Ziggs",
+  "title": "Hexplosives Expert",
+  "set": "Radiance",
+  "domains": [
+   "fury",
+   "chaos"
+  ],
+  "artist": "Envar Studio",
+  "image": "ziggs.jpg"
+ }
+]
