@@ -49,6 +49,12 @@ class AppState(
     var viewer by mutableStateOf(Side.ME); private set
     /** Hot-seat: the screen is covered until [cover] clicks "Continue". */
     var cover by mutableStateOf<Side?>(null); private set
+    /** Card under the pointer (C edits it). */
+    var hovered by mutableStateOf<Int?>(null)
+    /** A chain card choosing its target (T), or null. */
+    var targeting by mutableStateOf<Int?>(null)
+    /** Card whose might and damage are being edited (C), or null. */
+    var editing by mutableStateOf<Int?>(null)
 
     fun seatName(side: Side) = if (side == Side.ME) "Player 1" else "Player 2"
     fun shortName(side: Side) = if (side == Side.ME) "P1" else "P2"
@@ -115,7 +121,7 @@ class AppState(
     /** Swap seats without passing (hot-seat). */
     fun switchSeat() { cover = viewer.other }
 
-    fun leaveTable() { history = null; table = null; screen = Screen.NewGame }
+    fun leaveTable() { history = null; table = null; targeting = null; editing = null; screen = Screen.NewGame }
 
     companion object {
         /** Loads the bundled card library and battlefield art list (once per process). */

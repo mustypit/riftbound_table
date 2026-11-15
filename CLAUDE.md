@@ -32,8 +32,8 @@ builds `.msi`/`.exe` (Windows), `.dmg` (macOS, unsigned) and `.deb` (Linux) as a
 
 | Test | What it covers |
 |---|---|
-| `game/TableTest` | New game layout (legends, champions, shuffled decks without the champion copy, rune decks, battlefields, opening hands), shuffles from the random source, start of turn (ready, holds, channel 2 / 3 for the second player's first turn, draw), showdown opening, end of turn cleanup, hidden cards anonymous in the log, piles, score 0–8, focus, mulligan, undo/redo of every action |
-| `AppTest` | The real app: import two decks by deck code, roll, battlefields, table, drag a card to base and a unit to a battlefield, menu, hot-seat cover, settings, Navy table; animation frames (card slide, exhaust, score pop, d20 roll) |
+| `game/TableTest` | Chain (spells to chain, LIFO resolve to trash, targets), rune tap +1 energy / recycle +1 power, units enter/move exhausted, damage cleared when combat ends, set might/damage; new game layout (legends, champions, shuffled decks without the champion copy, rune decks, battlefields, opening hands), shuffles from the random source, start of turn (ready, holds, channel 2 / 3 for the second player's first turn, draw), showdown opening, end of turn cleanup, hidden cards anonymous in the log, piles, score 0–8, focus, mulligan, undo/redo of every action |
+| `AppTest` | The real app: import two decks by deck code, roll, battlefields, table, drag a unit to base (enters exhausted) and to a battlefield, menu, hot-seat cover, settings, Navy table; at 1920×1025: rune tap/ready/recycle with pools, click-to-play, chain + T targeting + arrow, hover previews (card and battlefield), S resolve, C might/damage, R / Shift+R; animation frames (card slide, exhaust, score pop, d20 roll) |
 | `game/CardsTest`, `DecksTest`, `DeckCodesTest`, `DiceTest`, `LegendsTest` | Copied from RiftTracker with their fixtures (card library, deck rules, Piltover Archive deck codes, fair d20) |
 
 ## Architecture
@@ -54,9 +54,21 @@ builds `.msi`/`.exe` (Windows), `.dmg` (macOS, unsigned) and `.deb` (Linux) as a
   row = rune box (two rows of rune cards, exhausted ones sideways, "ready/total"), base, champion,
   legend; score tracks 0–8 beside each player counting towards the middle; battlefields show their
   art across the zone with a name band (click name = showdown, chip = control). Side panel: turn,
-  log, focus, Pass/Start turn, Undo/Draw/End turn, big preview of the hovered card. Drag & drop
-  between zones (bounds registered per zone), click exhausts board cards, right-click menus, cards
-  slide from their last position (FLIP). Hidden info by viewer: `visibleTo`.
+  log, chain (top card large, Resolve, Target), focus, Pass/Start turn, Undo/Draw/End turn.
+  **Interactions follow RiftAtlas** (owner's demo video): card sizes scale with the window height
+  (`Dims`); the hand peeks from the bottom edge and the hovered card rises; hovering any visible card
+  shows it large beside it (above it for the hand), hovering a battlefield card shows the whole card.
+  Click: runes tap for 1 energy (or ready if exhausted), board cards exhaust/ready, hand cards play
+  (spells onto the chain, units/gear to base). Right-click: runes recycle for 1 power, other cards and
+  piles open menus, battlefield card opens showdown/control. Units enter exhausted and exhaust when
+  moving between base and battlefields (model). Spells never go to base: dropped on the board they go
+  on the chain. Chain cards target permanents (T, then click; arrows drawn from chain to target).
+  Closing a showdown ends the combat (damage there wears off). Drag & drop between zones; cards slide
+  from their last position only when they change zone (no jitter on reflow/hover); hand fan/lift is
+  drawn inside the card's own hit box.
+- Shortcuts (`Main.tableKey`, on the app root so they're testable): Space pass/start turn · E end turn
+  · D draw · R undo · Shift+R redo (Ctrl/Cmd Z too) · S resolve · T target · C might/damage of the
+  hovered card · Esc cancel. The app re-takes keyboard focus after every change.
 - `ui/DiceOverlay.kt`: RiftTracker's 3D d20, drawn with Skia.
 - Card backs: the **official** ones (owner's request, personal use), `src/main/resources/back_main.webp`
   (blue: main deck, hand), `back_rune.webp` (white: runes), `back_legend.webp` (black: legends,

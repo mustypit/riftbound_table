@@ -15,6 +15,11 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -41,7 +46,6 @@ fun main() {
         Window(
             onCloseRequest = ::exitApplication, title = "Riftbound Table", icon = painterResource("icon.png"),
             state = rememberWindowState(size = DpSize(1440.dp, 900.dp)),
-            onPreviewKeyEvent = { tableKey(app, it) },
         ) {
             window.minimumSize = java.awt.Dimension(1100, 720)
             App(app)
@@ -51,6 +55,17 @@ fun main() {
 
 @Composable
 fun App(app: AppState, diceClockMs: Float? = null) {
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    // Keep keyboard focus on the app so shortcuts keep working after panels, menus and overlays close.
+    androidx.compose.runtime.LaunchedEffect(app.screen, app.editing, app.targeting, app.cover, app.table) { runCatching { focus.requestFocus() } }
+    androidx.compose.foundation.layout.Box(
+        androidx.compose.ui.Modifier.fillMaxSize().onPreviewKeyEvent { tableKey(app, it) }
+            .focusRequester(focus).focusable().testTag("app-root"),
+    ) { AppContent(app, diceClockMs) }
+}
+
+@Composable
+private fun AppContent(app: AppState, diceClockMs: Float?) {
     AppTheme(app.settings.table) {
         AnimatedContent(app.screen, transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) }, contentKey = { it::class }) { s ->
             when (s) {
@@ -66,21 +81,31 @@ fun App(app: AppState, diceClockMs: Float? = null) {
     }
 }
 
-/** Table shortcuts: Space pass · N start turn · E end turn · D draw · Ctrl/Cmd Z undo · Ctrl/Cmd Shift Z redo. */
+/**
+ * Table shortcuts: Space pass / start turn · E end turn · D draw · R undo · Shift+R redo (also Ctrl/Cmd Z)
+ * · S resolve the chain · T target from the top of the chain · C edit might and damage of the hovered card
+ * · Esc cancel.
+ */
 fun tableKey(app: AppState, e: KeyEvent): Boolean {
     if (app.screen != Screen.Table || e.type != KeyEventType.KeyDown || app.cover != null) return false
     val t = app.table ?: return false
     val mod = e.isCtrlPressed || e.isMetaPressed
+    if (e.key == Key.Escape) { if (app.targeting == null && app.editing == null) return false; app.targeting = null; app.editing = null; return true }
+    if (app.editing != null) return false
     when {
         mod && e.key == Key.Z && e.isShiftPressed -> app.redo()
         mod && e.key == Key.Z -> app.undo()
         mod -> return false
+        e.key == Key.R && e.isShiftPressed -> app.redo()
+        e.key == Key.R -> app.undo()
         e.key == Key.Spacebar -> app.act(if (t.phase == Phase.AWAKEN) Action.StartTurn else Action.Pass)
         e.key == Key.N && t.phase == Phase.AWAKEN -> app.act(Action.StartTurn)
         e.key == Key.E -> app.act(Action.EndTurn)
         e.key == Key.D -> app.act(Action.Draw(app.viewer))
+        e.key == Key.S -> { app.targeting = null; app.act(Action.Resolve) }
+        e.key == Key.T -> app.targeting = t.ids(io.github.mustypit.riftboundtable.game.Zone.CHAIN).lastOrNull()
+        e.key == Key.C -> app.hovered?.takeIf { it in t.cards }?.let { app.editing = it } ?: return false
         else -> return false
     }
     return true
 }
-

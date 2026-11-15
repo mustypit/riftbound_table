@@ -144,7 +144,7 @@ class TableTest {
         h.apply(Action.StartTurn)
         val unit = h.state.cardsIn(Zone.of(ZoneKind.CHAMPION, Side.ME)).first().id
         val steps = listOf(
-            Action.Move(unit, Zone.bf(Side.ME, 1)), Action.Exhaust(unit, true), Action.Damage(unit, 2), Action.Buff(unit, true),
+            Action.Move(unit, Zone.bf(Side.ME, 1)), Action.Exhaust(unit, false), Action.Damage(unit, 2), Action.Buff(unit, true),
             Action.Xp(unit, 1), Action.Score(Side.ME, 1, PointKind.CONQUER), Action.Control(1, Side.ME), Action.Pass,
             Action.SetPool(Side.ME, Pool(1, 1)), Action.Draw(Side.OPP), Action.EndTurn,
         )
@@ -166,6 +166,85 @@ class TableTest {
         assertEquals(top, s.ids(Zone.of(ZoneKind.HAND, Side.ME))[1])
         assertEquals(card, s.ids(Zone.of(ZoneKind.DECK, Side.ME)).last())
         assertEquals(Table.OPENING_HAND, s.count(ZoneKind.HAND, Side.ME))
+    }
+
+    private fun firstOfType(s: TableState, side: Side, type: String): Int =
+        (s.ids(Zone.of(ZoneKind.HAND, side)) + s.ids(Zone.of(ZoneKind.DECK, side))).first { Cards.bySlug(s.card(it).slug)?.type == type }
+
+    /** Puts a card of [type] from the deck into the hand, so tests can play it. */
+    private fun inHand(s: TableState, side: Side, type: String): Pair<TableState, Int> {
+        val id = firstOfType(s, side, type)
+        return Table.apply(s, Action.Move(id, Zone.of(ZoneKind.HAND, side))) to id
+    }
+
+    @Test fun spellsPlayedOntoTheBoardGoOnTheChainAndResolveToTrash() {
+        var (s, spell) = inHand(Table.apply(game(), Action.StartTurn), Side.ME, "spell")
+        s = Table.apply(s, Action.Move(spell, Zone.of(ZoneKind.BASE, Side.ME)))
+        assertEquals(Zone.CHAIN, s.zoneOf(spell))
+        assertTrue(s.log.last().text.startsWith("Plays "))
+        val unit = s.ids(Zone.of(ZoneKind.CHAMPION, Side.ME)).first()
+        s = Table.apply(s, Action.Move(unit, Zone.of(ZoneKind.BASE, Side.ME)))
+        s = Table.apply(s, Action.Target(spell, unit))
+        assertEquals(listOf(unit), s.card(spell).targets)
+        s = Table.apply(s, Action.Target(spell, unit))
+        assertTrue(s.card(spell).targets.isEmpty())
+        s = Table.apply(s, Action.Target(spell, unit))
+        s = Table.apply(s, Action.Resolve)
+        assertEquals(Zone.of(ZoneKind.TRASH, Side.ME), s.zoneOf(spell))
+        assertTrue(s.card(spell).targets.isEmpty())
+        assertTrue(s.ids(Zone.CHAIN).isEmpty())
+    }
+
+    @Test fun theChainResolvesLastInFirstOut() {
+        var s = Table.apply(game(), Action.StartTurn)
+        val (s1, a) = inHand(s, Side.ME, "spell"); s = Table.apply(s1, Action.Move(a, Zone.of(ZoneKind.BASE, Side.ME)))
+        val b = (s.ids(Zone.of(ZoneKind.DECK, Side.OPP))).first { Cards.bySlug(s.card(it).slug)?.type == "spell" }
+        s = Table.apply(s, Action.Move(b, Zone.of(ZoneKind.HAND, Side.OPP)))
+        s = Table.apply(s, Action.Move(b, Zone.bf(Side.OPP, 0)))
+        assertEquals(listOf(a, b), s.ids(Zone.CHAIN))
+        s = Table.apply(s, Action.Resolve)
+        assertEquals(Zone.of(ZoneKind.TRASH, Side.OPP), s.zoneOf(b))
+        assertEquals(listOf(a), s.ids(Zone.CHAIN))
+    }
+
+    @Test fun runesTapForEnergyAndRecycleForPower() {
+        var s = Table.apply(game(), Action.StartTurn)
+        val (r1, r2) = s.ids(Zone.of(ZoneKind.RUNES, Side.ME))
+        s = Table.apply(s, Action.TapRune(r1))
+        assertTrue(s.card(r1).exhausted); assertEquals(Pool(1, 0), s.pools[Side.ME])
+        s = Table.apply(s, Action.TapRune(r1)) // already exhausted: nothing
+        assertEquals(Pool(1, 0), s.pools[Side.ME])
+        s = Table.apply(s, Action.Exhaust(r1, false)) // readying adds nothing back
+        assertFalse(s.card(r1).exhausted); assertEquals(Pool(1, 0), s.pools[Side.ME])
+        s = Table.apply(s, Action.Recycle(r2))
+        assertEquals(Pool(1, 1), s.pools[Side.ME])
+        assertEquals(r2, s.ids(Zone.of(ZoneKind.RUNE_DECK, Side.ME)).last())
+        s = Table.apply(s, Action.EndTurn)
+        assertEquals(Pool(), s.pools[Side.ME])
+    }
+
+    @Test fun unitsEnterExhaustedAndMovingThemExhaustsThem() {
+        var (s, unit) = inHand(Table.apply(game(), Action.StartTurn), Side.ME, "unit")
+        s = Table.apply(s, Action.Move(unit, Zone.of(ZoneKind.BASE, Side.ME)))
+        assertTrue(s.card(unit).exhausted)
+        s = Table.apply(s, Action.Exhaust(unit, false))
+        s = Table.apply(s, Action.Move(unit, Zone.bf(Side.ME, 0)))
+        assertTrue(s.card(unit).exhausted)
+        s = Table.apply(s, Action.Exhaust(unit, false))
+        s = Table.apply(s, Action.Move(unit, Zone.of(ZoneKind.BASE, Side.ME)))
+        assertTrue(s.card(unit).exhausted)
+    }
+
+    @Test fun damageWearsOffWhenTheCombatEndsAndMightCanBeSet() {
+        var s = Table.apply(game(), Action.StartTurn)
+        val unit = s.ids(Zone.of(ZoneKind.CHAMPION, Side.ME)).first()
+        s = Table.apply(s, Action.Move(unit, Zone.bf(Side.ME, 1)))
+        assertEquals(1, s.showdown)
+        s = Table.apply(s, Action.SetDamage(unit, 3))
+        s = Table.apply(s, Action.SetMight(unit, -2))
+        assertEquals(3, s.card(unit).damage); assertEquals(-2, s.card(unit).mightMod)
+        s = Table.apply(s, Action.Showdown(null))
+        assertEquals(0, s.card(unit).damage); assertEquals(-2, s.card(unit).mightMod)
     }
 
     @Test fun aNewActionClearsRedo() {

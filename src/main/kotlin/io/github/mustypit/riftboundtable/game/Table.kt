@@ -17,7 +17,9 @@ enum class Side { ME, OPP;
 @Serializable
 enum class ZoneKind(val hidden: Boolean = false, val pile: Boolean = false) {
     HAND(hidden = true), DECK(hidden = true, pile = true), TRASH(pile = true), BANISH(pile = true),
-    BASE, RUNES, RUNE_DECK(hidden = true, pile = true), LEGEND, CHAMPION, BATTLEFIELD
+    BASE, RUNES, RUNE_DECK(hidden = true, pile = true), LEGEND, CHAMPION, BATTLEFIELD,
+    /** The chain (stack): shared by both players, kept under [Zone.CHAIN]; the last id is the top. */
+    CHAIN,
 }
 
 @Serializable
@@ -26,6 +28,8 @@ data class Zone(val kind: ZoneKind, val side: Side, val bf: Int = -1) {
     companion object {
         fun bf(side: Side, index: Int) = Zone(ZoneKind.BATTLEFIELD, side, index)
         fun of(kind: ZoneKind, side: Side) = Zone(kind, side)
+        /** The one shared chain. */
+        val CHAIN = Zone(ZoneKind.CHAIN, Side.ME)
     }
 }
 
@@ -43,6 +47,8 @@ data class CardInst(
     val mightMod: Int = 0,
     val xp: Int = 0,
     val faceDown: Boolean = false,
+    /** For a card on the chain: the permanents it targets. */
+    val targets: List<Int> = emptyList(),
 )
 
 @Serializable
@@ -126,6 +132,14 @@ sealed interface Action {
     @Serializable data class Note(val side: Side?, val text: String) : Action
     /** Mulligan one card: it goes to the bottom of the deck and the top card replaces it. */
     @Serializable data class Mulligan(val id: Int) : Action
+    /** Exhaust a ready rune for 1 energy (adds it to the floating pool). */
+    @Serializable data class TapRune(val id: Int) : Action
+    /** Resolve the top of the chain: it goes to its owner's trash. */
+    @Serializable data object Resolve : Action
+    /** A chain card targets a permanent (again = untarget). */
+    @Serializable data class Target(val source: Int, val target: Int) : Action
+    @Serializable data class SetMight(val id: Int, val mod: Int) : Action
+    @Serializable data class SetDamage(val id: Int, val damage: Int) : Action
 }
 
 /**
@@ -178,6 +192,16 @@ object Table {
     }
 
     private fun TableState.update(id: Int, f: (CardInst) -> CardInst) = copy(cards = cards + (id to f(card(id))))
+    private fun TableState.addPool(side: Side, energy: Int = 0, power: Int = 0): TableState {
+        val p = pools[side] ?: Pool()
+        return copy(pools = pools + (side to Pool(p.energy + energy, p.power + power)))
+    }
+    /** End of combat at a battlefield: damage on the units there wears off. */
+    private fun endCombat(s: TableState, bf: Int): TableState {
+        var t = s
+        for (side in Side.entries) for (id in s.ids(Zone.bf(side, bf))) t = t.update(id) { it.copy(damage = 0) }
+        return t
+    }
     private fun TableState.log(side: Side?, text: String) = copy(log = (log + LogEntry(side, text)).takeLast(200))
     private fun name(slug: String) = Cards.bySlug(slug)?.name ?: slug
 
@@ -191,7 +215,7 @@ object Table {
         ZoneKind.BATTLEFIELD -> name(s.battlefields.getOrElse(z.bf) { "battlefield ${z.bf + 1}" })
         ZoneKind.HAND -> "hand"; ZoneKind.DECK -> "deck"; ZoneKind.TRASH -> "trash"; ZoneKind.BANISH -> "banishment"
         ZoneKind.BASE -> "base"; ZoneKind.RUNES -> "runes"; ZoneKind.RUNE_DECK -> "rune deck"
-        ZoneKind.LEGEND -> "legend"; ZoneKind.CHAMPION -> "champion zone"
+        ZoneKind.LEGEND -> "legend"; ZoneKind.CHAMPION -> "champion zone"; ZoneKind.CHAIN -> "chain"
     }
 
     fun apply(s: TableState, a: Action): TableState = when (a) {
@@ -211,6 +235,7 @@ object Table {
             val to = Zone.of(ZoneKind.RUNE_DECK, c.owner)
             s.copy(zones = s.zones + (from!! to s.ids(from) - a.id) + (to to s.ids(to) - a.id + a.id))
                 .update(a.id) { it.copy(exhausted = false) }
+                .let { t -> if (from.kind == ZoneKind.RUNES) t.addPool(c.owner, power = 1) else t }
                 .log(c.owner, "Recycles ${name(c.slug)}")
         }
         is Action.Shuffle -> s // Shuffling needs randomness: use [shuffle].
@@ -222,7 +247,8 @@ object Table {
         is Action.SetScore -> s.copy(score = s.score + (a.side to a.value.coerceIn(0, s.pointsToWin))).log(a.side, "Score ${a.value}")
         is Action.Control -> s.copy(control = s.control.toMutableList().also { it[a.bf] = a.side })
         is Action.Showdown -> s.copy(showdown = a.bf).let {
-            if (a.bf != null) it.log(null, "Showdown at ${name(s.battlefields[a.bf])}") else it
+            if (a.bf != null) it.log(null, "Showdown at ${name(s.battlefields[a.bf])}")
+            else s.showdown?.let { bf -> endCombat(it, bf) } ?: it
         }
         is Action.SetPool -> s.copy(pools = s.pools + (a.side to Pool(a.pool.energy.coerceAtLeast(0), a.pool.power.coerceAtLeast(0))))
         is Action.ReadyAll -> readyAll(s, a.side)
@@ -230,6 +256,30 @@ object Table {
         Action.Pass -> s.copy(focus = s.focus.other).log(s.focus, "Pass")
         Action.EndTurn -> endTurn(s)
         is Action.Note -> s.log(a.side, a.text)
+        is Action.TapRune -> {
+            val c = s.card(a.id)
+            if (c.exhausted || s.zoneOf(a.id)?.kind != ZoneKind.RUNES) s
+            else s.update(a.id) { it.copy(exhausted = true) }.addPool(c.owner, energy = 1)
+        }
+        Action.Resolve -> {
+            val top = s.ids(Zone.CHAIN).lastOrNull()
+            if (top == null) s else {
+                val c = s.card(top)
+                val to = Zone.of(ZoneKind.TRASH, c.owner)
+                s.copy(zones = s.zones + (Zone.CHAIN to s.ids(Zone.CHAIN).dropLast(1)) + (to to listOf(top) + s.ids(to)))
+                    .update(top) { it.copy(targets = emptyList()) }
+                    .log(c.owner, "${name(c.slug)} resolves")
+            }
+        }
+        is Action.Target -> {
+            val c = s.card(a.source)
+            val t = if (a.target in c.targets) c.targets - a.target else c.targets + a.target
+            s.update(a.source) { it.copy(targets = t) }.let {
+                if (a.target in t) it.log(c.owner, "${name(c.slug)} targets ${it.shown(a.target, it.zoneOf(a.target))}") else it
+            }
+        }
+        is Action.SetMight -> s.update(a.id) { it.copy(mightMod = a.mod) }
+        is Action.SetDamage -> s.update(a.id) { it.copy(damage = a.damage.coerceAtLeast(0)) }
         is Action.Mulligan -> {
             val side = s.card(a.id).owner
             val deck = Zone.of(ZoneKind.DECK, side); val hand = Zone.of(ZoneKind.HAND, side)
@@ -241,9 +291,13 @@ object Table {
         }
     }
 
-    private fun move(s: TableState, a: Action.Move): TableState {
-        val from = s.zoneOf(a.id) ?: return s
-        val c = s.card(a.id)
+    private fun move(s: TableState, a0: Action.Move): TableState {
+        val from = s.zoneOf(a0.id) ?: return s
+        val c = s.card(a0.id)
+        val type = Cards.bySlug(c.slug)?.type
+        val fieldKinds = setOf(ZoneKind.BASE, ZoneKind.BATTLEFIELD)
+        // A spell played onto the board goes on the chain instead (face-down cards stay where they're hidden).
+        val a = if (type == "spell" && a0.to.kind in fieldKinds && !c.faceDown && from.kind !in fieldKinds) a0.copy(to = Zone.CHAIN, index = null) else a0
         val without = s.ids(from) - a.id
         val target = if (from == a.to) without else s.ids(a.to)
         val i = (a.index ?: target.size).coerceIn(0, target.size)
@@ -252,8 +306,10 @@ object Table {
         var t = s.copy(zones = zones)
         // Leaving the board clears damage, buffs and exhaustion; going to a hidden zone also turns it face up.
         val onBoard = setOf(ZoneKind.BASE, ZoneKind.BATTLEFIELD, ZoneKind.RUNES, ZoneKind.LEGEND, ZoneKind.CHAMPION)
-        if (a.to.kind !in onBoard) t = t.update(a.id) { it.copy(exhausted = false, damage = 0, buff = false, mightMod = 0, faceDown = false) }
+        if (a.to.kind !in onBoard) t = t.update(a.id) { it.copy(exhausted = false, damage = 0, buff = false, mightMod = 0, faceDown = false, targets = emptyList()) }
         if (from == a.to) return t
+        // Units enter play exhausted, and moving between base and battlefields exhausts them.
+        if (type == "unit" && a.to.kind in fieldKinds && !t.card(a.id).faceDown) t = t.update(a.id) { it.copy(exhausted = true) }
         // A unit moving to a battlefield its side doesn't control opens a showdown there.
         if (a.to.kind == ZoneKind.BATTLEFIELD && from.kind != ZoneKind.HAND && s.control[a.to.bf] != a.to.side && s.showdown == null &&
             !c.faceDown && Cards.bySlug(c.slug)?.type == "unit") {
@@ -262,6 +318,7 @@ object Table {
         val who = a.to.side.takeIf { a.to.kind != ZoneKind.TRASH } ?: c.owner
         val text = when {
             from.kind == ZoneKind.HAND && a.to.kind == ZoneKind.BATTLEFIELD && t.card(a.id).faceDown -> "Hides a card at ${zoneLabel(s, a.to)}"
+            a.to.kind == ZoneKind.CHAIN -> "Plays ${name(c.slug)}"
             from.kind == ZoneKind.HAND -> "Plays ${t.shown(a.id, a.to)} to ${zoneLabel(s, a.to)}"
             else -> "${s.shown(a.id, from).replaceFirstChar { it.uppercase() }} ${zoneLabel(s, from)} → ${zoneLabel(s, a.to)}"
         }

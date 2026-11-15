@@ -7,6 +7,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.moveTo
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.withKeyDown
+import io.github.mustypit.riftboundtable.game.Pool
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
@@ -108,17 +118,17 @@ class AppTest {
         assertEquals(first, app.viewer)
         shot("07_table_start")
 
-        // Start the first turn, play a card from hand to base by dragging, then move the champion in.
+        // Start the first turn, drag a unit from hand to base, then move the champion in.
         onNodeWithTag("primary").performClick()
-        val t = app.table!!
-        assertEquals(Phase.ACTION, t.phase)
-        val handCard = t.ids(Zone.of(ZoneKind.HAND, first)).first()
+        assertEquals(Phase.ACTION, app.table!!.phase)
+        val handCard = unitInHand(app, first)
         drag("card-$handCard", "zone-BASE-$first")
         assertEquals(Zone.of(ZoneKind.BASE, first), app.table!!.zoneOf(handCard))
-        val champ = t.ids(Zone.of(ZoneKind.CHAMPION, first)).first()
+        assertTrue(app.table!!.card(handCard).exhausted) // units enter exhausted
+        val champ = app.table!!.ids(Zone.of(ZoneKind.CHAMPION, first)).first()
         drag("card-$champ", "zone-BATTLEFIELD-$first-1")
         assertEquals(1, app.table!!.showdown)
-        onNodeWithTag("card-$handCard").performClick() // exhaust
+        onNodeWithTag("card-$handCard").performClick() // ready
         app.act(Action.Damage(champ, 2)); app.act(Action.Buff(champ, true))
         onNodeWithTag("control-0").performClick()
         onNodeWithTag("score-$first-2").performClick()
@@ -162,10 +172,11 @@ class AppTest {
         waitForIdle()
         mainClock.autoAdvance = false
         val t = app.table!!
-        val card = t.ids(Zone.of(ZoneKind.HAND, Side.ME))[2]
+        val card = unitInHand(app, Side.ME)
+        waitForIdle()
         app.act(Action.Move(card, Zone.of(ZoneKind.BASE, Side.ME)))
         for (i in 0..13) { mainClock.advanceTimeBy(20); frame("move_%02d".format(i)) }
-        app.act(Action.Exhaust(card, true))
+        app.act(Action.Exhaust(card, false))
         for (i in 0..9) { mainClock.advanceTimeBy(20); frame("exhaust_%02d".format(i)) }
         app.act(Action.Score(Side.ME, 1, io.github.mustypit.riftboundtable.game.PointKind.CONQUER))
         for (i in 0..13) { mainClock.advanceTimeBy(20); frame("score_%02d".format(i)) }
@@ -173,6 +184,107 @@ class AppTest {
         app.leaveTable(); waitForIdle()
         app.roll()
         for (i in 0..74) { clock = i * 60f; waitForIdle(); frame("roll_%02d".format(i)) }
+    }
+
+    /** A unit in [side]'s hand (fetched from the deck if the hand has none). */
+    private fun unitInHand(app: AppState, side: Side): Int {
+        val t = app.table!!
+        val hand = Zone.of(ZoneKind.HAND, side)
+        t.ids(hand).firstOrNull { Cards.bySlug(t.card(it).slug)?.type == "unit" }?.let { return it }
+        val id = t.ids(Zone.of(ZoneKind.DECK, side)).first { Cards.bySlug(t.card(it).slug)?.type == "unit" }
+        app.act(Action.Move(id, hand)); return id
+    }
+
+    private fun cardInHand(app: AppState, side: Side, type: String): Int {
+        val t = app.table!!
+        val hand = Zone.of(ZoneKind.HAND, side)
+        t.ids(hand).firstOrNull { Cards.bySlug(t.card(it).slug)?.type == type }?.let { return it }
+        val id = t.ids(Zone.of(ZoneKind.DECK, side)).first { Cards.bySlug(t.card(it).slug)?.type == type }
+        app.act(Action.Move(id, hand)); return id
+    }
+
+    private fun ComposeUiTest.key(k: Key, shift: Boolean = false) {
+        onNodeWithTag("app-root").performKeyInput { if (shift) withKeyDown(Key.ShiftLeft) { pressKey(k) } else pressKey(k) }
+        waitForIdle()
+    }
+
+    /** The RiftAtlas-style interactions at a 1920×1025 window (the owner's screen). */
+    @Test fun tableInteractions() = runDesktopComposeUiTest(1920, 1025) {
+        val app = newApp()
+        app.saveDeck(jinx.copy(name = "Jinx"), Side.ME); app.saveDeck(kaisa.copy(name = "Kai'Sa"), Side.OPP)
+        setContent { App(app) }
+        app.startTable(io.github.mustypit.riftboundtable.game.Table.newGame(jinx, kaisa, Side.ME, "Back-Alley Bar" to "Grove of the God-Willow", Random(3)))
+        waitForIdle()
+        key(Key.Spacebar) // start turn
+        assertEquals(Phase.ACTION, app.table!!.phase)
+        val (r1, r2) = app.table!!.ids(Zone.of(ZoneKind.RUNES, Side.ME))
+
+        // Runes: click taps for 1 energy, click again readies; right-click recycles for 1 power.
+        onNodeWithTag("card-$r1").performClick()
+        assertTrue(app.table!!.card(r1).exhausted); assertEquals(Pool(1, 0), app.table!!.pools[Side.ME])
+        onNodeWithTag("card-$r1").performClick()
+        assertFalse(app.table!!.card(r1).exhausted)
+        onNodeWithTag("card-$r2").performMouseInput { rightClick(center) }
+        assertEquals(Pool(1, 1), app.table!!.pools[Side.ME])
+        assertEquals(Zone.of(ZoneKind.RUNE_DECK, Side.ME), app.table!!.zoneOf(r2))
+
+        // Clicking a hand card plays it: units to base (exhausted), spells onto the chain.
+        val unit = unitInHand(app, Side.ME)
+        onNodeWithTag("card-$unit").performClick()
+        assertEquals(Zone.of(ZoneKind.BASE, Side.ME), app.table!!.zoneOf(unit))
+        assertTrue(app.table!!.card(unit).exhausted)
+        val spell = cardInHand(app, Side.ME, "spell")
+        onNodeWithTag("card-$spell").performClick()
+        assertEquals(Zone.CHAIN, app.table!!.zoneOf(spell))
+
+        // T: target from the top of the chain, then click the unit.
+        key(Key.T)
+        assertEquals(spell, app.targeting)
+        onNodeWithTag("target-banner").assertExists()
+        shot("14_targeting")
+        onNodeWithTag("card-$unit").performClick()
+        assertEquals(listOf(unit), app.table!!.card(spell).targets)
+        assertNull(app.targeting)
+        shot("15_chain_target")
+
+        // Hovering shows the card large; hovering a battlefield shows the whole battlefield card.
+        val other = app.table!!.ids(Zone.of(ZoneKind.HAND, Side.ME)).first()
+        onNodeWithTag("card-$other").performMouseInput { moveTo(center) }
+        waitForIdle()
+        onNodeWithTag("preview").assertExists()
+        shot("16_hover_hand")
+        onNodeWithTag("bfcard-1").performMouseInput { moveTo(center) }
+        waitForIdle()
+        onNodeWithTag("bf-preview").assertExists()
+        shot("17_hover_battlefield")
+
+        // S resolves: the spell goes to the trash and its arrow disappears.
+        key(Key.S)
+        assertEquals(Zone.of(ZoneKind.TRASH, Side.ME), app.table!!.zoneOf(spell))
+
+        // C on the hovered unit: might and damage.
+        onNodeWithTag("card-$unit").performMouseInput { moveTo(center) }
+        waitForIdle()
+        key(Key.C)
+        onNodeWithTag("edit").assertExists()
+        onNodeWithContentDescription("More Might").performClick()
+        onNodeWithContentDescription("More Damage").performClick()
+        onNodeWithContentDescription("More Damage").performClick()
+        assertEquals(1, app.table!!.card(unit).mightMod); assertEquals(2, app.table!!.card(unit).damage)
+        shot("18_edit_might")
+        key(Key.Escape)
+        assertNull(app.editing)
+
+        // R undoes, Shift+R redoes.
+        key(Key.R)
+        assertEquals(1, app.table!!.card(unit).damage)
+        key(Key.R, shift = true)
+        assertEquals(2, app.table!!.card(unit).damage)
+
+        // Pool steppers.
+        onAllNodesWithContentDescription("More Energy")[1].performClick()
+        assertEquals(2, app.table!!.pools[Side.ME]!!.energy)
+        shot("19_table_1920")
     }
 
     private var clock by androidx.compose.runtime.mutableStateOf(0f)
