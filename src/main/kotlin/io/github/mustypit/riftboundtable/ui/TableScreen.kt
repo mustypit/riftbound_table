@@ -352,7 +352,7 @@ private fun DropZone(ui: TableUi, zone: Zone, modifier: Modifier, framed: Boolea
 
 @Composable
 fun CardFace(c: CardInst, visible: Boolean, w: Dp, h: Dp, modifier: Modifier = Modifier) {
-    val img = if (visible) Images.card(c.slug) else Images.back
+    val img = if (visible) Images.card(c.slug) else Images.back(c.slug)
     val shape = RoundedCornerShape(w * 0.07f)
     Box(modifier.size(w, h).clip(shape).background(Color(0xFF14161A))
         .then(if (c.faceDown) Modifier.border(2.dp, Color(0xFF9C9EA3), shape) else Modifier)) {

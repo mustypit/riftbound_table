@@ -26,5 +26,10 @@ object Images {
         return Battlefields.byName(name)?.id?.let { id -> listOf("jpg", "webp", "png").firstNotNullOfOrNull { load("battlefields/$id.$it") } } ?: card(slug)
     }
     fun legendArt(id: String): ImageBitmap? = listOf("webp", "jpg", "png").firstNotNullOfOrNull { load("legends/$id.$it") }
-    val back: ImageBitmap? get() = load("back.webp")
+    /** The official card back for a card: white for runes, black for legends and battlefields, blue for the main deck. */
+    fun back(slug: String?): ImageBitmap? = when (slug?.let { Cards.bySlug(it)?.type }) {
+        "rune" -> load("back_rune.webp")
+        "legend", "battlefield" -> load("back_legend.webp")
+        else -> load("back_main.webp")
+    }
 }

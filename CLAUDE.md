@@ -58,8 +58,10 @@ builds `.msi`/`.exe` (Windows), `.dmg` (macOS, unsigned) and `.deb` (Linux) as a
   between zones (bounds registered per zone), click exhausts board cards, right-click menus, cards
   slide from their last position (FLIP). Hidden info by viewer: `visibleTo`.
 - `ui/DiceOverlay.kt`: RiftTracker's 3D d20, drawn with Skia.
-- Card back: `src/main/resources/back.webp`. The owner wants the **official card back**; it isn't in
-  the card data and the session couldn't fetch it. Replace the placeholder when the owner provides it.
+- Card backs: the **official** ones (owner's request, personal use), `src/main/resources/back_main.webp`
+  (blue: main deck, hand), `back_rune.webp` (white: runes), `back_legend.webp` (black: legends,
+  battlefields); `Images.back(slug)` picks by card type. Source: RiftAtlas's static assets
+  (`assets.riftatlas-workers.com/riftbound/static/cardback-{blue,white,black}.png`, 744×1039).
 
 ## Product decisions
 
@@ -70,3 +72,5 @@ builds `.msi`/`.exe` (Windows), `.dmg` (macOS, unsigned) and `.deb` (Linux) as a
 - Hidden info towards Claude (phase 3): Claude only learns the owner's hand size, face-up cards with
   full text, existence of face-down cards, trash with full text, deck size. Never the decklist.
 - Develop on a branch, push, merge to `main` only when the owner says. No PRs unless asked.
+- Releases: GitHub releases with the installers from the Build workflow's artifacts on `main`
+  (`gh run download <run> -D dist` then `gh release create vX.Y.Z dist/*/*`).
